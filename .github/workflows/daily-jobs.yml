@@ -1,0 +1,33 @@
+name: Daily job digest
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 06:00 UTC = 07:00 in Nigeria
+  workflow_dispatch:       # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write          # needed to save seen_jobs.json back to the repo
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch, score and email new jobs
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python job_digest.py
+
+      - name: Save seen jobs
+        run: |
+          git config user.name "job-digest-bot"
+          git config user.email "job-digest-bot@users.noreply.github.com"
+          git add seen_jobs.json
+          git diff --staged --quiet || (git commit -m "Update seen jobs" && git push)
